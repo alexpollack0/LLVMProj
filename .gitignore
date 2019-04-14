@@ -33,3 +33,7 @@
 
 # Log files
 *.log
+
+# User specific files
+sample/obj
+sample/opt
