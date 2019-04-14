@@ -1,0 +1,60 @@
+This document refers to the steps that need to be followed to set up your project. 
+
+(1) First copy this sample folder to your local directory, say ~/home/xyz/sample.   
+
+(2) Create a obj folder at the same level as sample, say ~/home/xyz/obj and also create a directory to install the libraries called opt at ~/home/xyz/opt 
+
+(3) Configure the build system in the obj directory: 
+
+~/home/xyz/obj$ ../sample/configure --with-llvmsrc=/afs/glue/class/old/enee/759c/llvm/llvm-2.5 \
+                                    --with-llvmobj=/afs/glue/class/old/enee/759c/llvm/obj \
+                                    --prefix=~/home/xyz/opt 
+
+(4) Create a new directory for any new set of passes you want to add within the lib
+directory, create .cpp files within that directory while the include directory has 
+.h files required by the .cpp files. Add the new directory to the Makefile in the lib directory.   
+
+(5) Once you have created a new pass within that directory, you can build it and test
+it out as follows:
+
+~/home/xyz/obj$ gmake install
+
+llvm[0]: Regenerating /afs/glue.umd.edu/home/glue/a/k/akotha/home/llvm/obj/Makefile.common
+config.status: creating Makefile.common
+gmake[1]: Entering directory `/afs/glue.umd.edu/home/glue/a/k/akotha/home/llvm/obj/lib'
+gmake[2]: Entering directory `/afs/glue.umd.edu/home/glue/a/k/akotha/home/llvm/obj/lib/Hello'
+llvm[2]: Compiling Hello.cpp for Release build  (PIC)
+llvm[2]: Linking Release Shared Library Hello1.so
+llvm[2]: Linking Release Object Library Hello1.o
+gmake[2]: Leaving directory `/afs/glue.umd.edu/home/glue/a/k/akotha/home/llvm/obj/lib/Hello'
+gmake[1]: Leaving directory `/afs/glue.umd.edu/home/glue/a/k/akotha/home/llvm/obj/lib'
+
+[There would be many more lines ... only few reproduced here]
+
+(6) Set the PATH variable to also have the llvm installation as follows:
+
+~/home/xyz/obj: setenv PATH /afs/glue/class/old/enee/759c/llvm/opt/bin/:$PATH
+
+Check that the installation is correct as follows 
+
+~/home/xyz/obj: opt --version
+Low Level Virtual Machine (http://llvm.org/):
+  llvm version 2.5
+  Optimized build with assertions.
+  Built Apr 16 2011(13:42:38).
+
+(7) You can run your pass as follows:
+
+~/home/xyz/obj: opt -load ../opt/lib/libHello1.so -hello /afs/glue/class/old/enee/759c/llvm/test_codes/Matrix_multiply.bc -o new.bc
+
+[The output should look like]
+
+Hello: main
+
+
+(8) You should now be set to do your project :)
+
+
+
+Document created by Aparna Kotha , ECE , UMD 
+
