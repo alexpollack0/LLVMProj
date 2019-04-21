@@ -25,13 +25,16 @@
 using namespace llvm;
 
 
+#define DEBUG 1
+
 
 namespace {
 struct Hello :  public FunctionPass
 {
 
         /** Constructor. */
-	static char ID;                           
+	static char ID;
+        Function* func_pop_direct_branch;
 	Hello() : FunctionPass(ID) {
 	}
 
@@ -45,6 +48,33 @@ struct Hello :  public FunctionPass
 			0,
 			"g");
 		gvar_int32_g->setAlignment(4);
+
+
+		func_pop_direct_branch = mod->getFunction("pop_direct_branch");
+		if (!func_pop_direct_branch) {
+		  func_pop_direct_branch = Function::Create(
+							    /*Type=*/FuncTy_6,
+							    /*Linkage=*/GlobalValue::ExternalLinkage,
+							    /*Name=*/"pop_direct_branch", mod); 
+		  func_pop_direct_branch->setCallingConv(CallingConv::C);
+		}
+		AttributeSet func_pop_direct_branch_PAL;
+		{
+		  SmallVector<AttributeSet, 4> Attrs;
+		  AttributeSet PAS;
+		  {
+		    AttrBuilder B;
+		    B.addAttribute(Attribute::NoUnwind);
+		    B.addAttribute(Attribute::UWTable);
+		    PAS = AttributeSet::get(mod->getContext(), ~0U, B);
+		  }
+  
+		  Attrs.push_back(PAS);
+		  func_pop_direct_branch_PAL = AttributeSet::get(mod->getContext(), Attrs);
+  
+		}
+		func_pop_direct_branch->setAttributes(func_pop_direct_branch_PAL);
+
 		
 		return true;
 	}
@@ -65,7 +95,7 @@ struct Hello :  public FunctionPass
 				if(isa<CallInst>(*IN)){
 					//errs() << *IN << "\n";
 					CallInst *CI = cast<CallInst>(IN);
-					Function* callingFunc = CI->getCalledFunction();
+					Function* callingFunc = CI->getCalledFunction();			
 					if(callingFunc->getName().front() == 'p' && callingFunc->getName() != "printf"){
 						errs() << "Cloning " << callingFunc->getName() << "\n";
 						llvm::ValueToValueMapTy VMap;
@@ -76,7 +106,7 @@ struct Hello :  public FunctionPass
 						Function *clonedFunc = llvm::CloneFunction(callingFunc, VMap, CodeInfo);
 
 						// For testing purposes - Make sure cloned functions are identical
-						/*
+						#if DEBUG
 						for(Function::iterator o = callingFunc->begin(), oe = callingFunc->end(); o != oe; ++o){
 							BasicBlock* OB = o;
 							for(BasicBlock::iterator oI = OB->begin(), oIE = OB->end(); oI != oIE; ++oI){
@@ -84,6 +114,17 @@ struct Hello :  public FunctionPass
 								errs() << *origInstr << "\n";
 							} 
 						}
+						#endif
+
+
+						// Add the call to pop_direct_branch
+						//						CallInst* pop_call = CallInst::Create(func_pop_direct_branch,
+										      "",
+										      
+
+
+						
+						#if DEBUG
 						errs() << "Printing cloned function:\n";
 						for(Function::iterator c = clonedFunc->begin(), ce = clonedFunc->end(); c != ce; ++c){
 							BasicBlock *CB = c;
@@ -92,7 +133,7 @@ struct Hello :  public FunctionPass
 								errs() << *clonInstr << "\n";
 							}
 						}
-						*/
+						#endif
 					}
 				}
 			}
