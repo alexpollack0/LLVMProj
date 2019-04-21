@@ -1,17 +1,3 @@
-//===- Hello.cpp - Example code from "Writing an LLVM Pass" ---------------===//
-//
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
-//
-//===----------------------------------------------------------------------===//
-//
-// This file implements two versions of the LLVM "Hello World" pass described
-// in docs/WritingAnLLVMPass.html
-//
-//===----------------------------------------------------------------------===//
-
 #define DEBUG_TYPE "hello"
 #include "llvm/Pass.h"
 #include "llvm/IR/Function.h"
@@ -35,10 +21,12 @@ struct Hello :  public FunctionPass
 	Hello() : FunctionPass(ID) {
 	}
 
+	GlobalVariable* gvar_int32_g;
+
 	virtual bool doInitialization(Module &M){
 
 		
-		GlobalVariable* gvar_int32_g = new GlobalVariable(M,
+		gvar_int32_g = new GlobalVariable(M,
 			IntegerType::get(M.getContext(),32),
 			false,
 			GlobalValue::ExternalLinkage, /*TODO: Check that linkage is correct */
@@ -76,6 +64,7 @@ struct Hello :  public FunctionPass
 						Function *clonedFunc = llvm::CloneFunction(callingFunc, VMap, CodeInfo);
 
 						// For testing purposes - Make sure cloned functions are identical
+						
 						/*
 						for(Function::iterator o = callingFunc->begin(), oe = callingFunc->end(); o != oe; ++o){
 							BasicBlock* OB = o;
@@ -84,15 +73,35 @@ struct Hello :  public FunctionPass
 								errs() << *origInstr << "\n";
 							} 
 						}
+						*/
 						errs() << "Printing cloned function:\n";
 						for(Function::iterator c = clonedFunc->begin(), ce = clonedFunc->end(); c != ce; ++c){
 							BasicBlock *CB = c;
 							for(BasicBlock::iterator cI = CB->begin(), cIE = CB->end(); cI != cIE; ++cI){
 								Instruction *clonInstr = cI;
-								errs() << *clonInstr << "\n";
+								if(isa<ReturnInst>(clonInstr)){
+									errs() << *clonInstr << "\n";
+									Value* retVal = cast<ReturnInst>(clonInstr)->getReturnValue();
+									if(retVal){
+										errs() << "Returning " << *retVal << "\n";
+										// Store return value in g
+										StoreInst *str = new StoreInst(retVal, gvar_int32_g, clonInstr);
+										/*
+										for(BasicBlock::iterator strI = CB->begin(), strIE = CB->end(); strI != strIE; ++strI){
+											Instruction *clonInstrStr = strI;
+											errs() << *clonInstrStr << "\n";
+										}
+										*/
+										// TODO: Do we need to remove cloneInstr from function?
+									}
+									else{
+										errs() << "Returning void\n";
+										// Don't need to store to g
+									}
+								}
 							}
 						}
-						*/
+						
 					}
 				}
 			}
