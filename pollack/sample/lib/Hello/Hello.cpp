@@ -79,9 +79,24 @@ struct Hello :  public FunctionPass
          * @return true if the function was modified; false otherwise
         */
         virtual bool runOnFunction(llvm::Function &F){
-		errs() << "Function Name: ";
-		errs().write_escaped(F.getName())<< "\n";
+		errs() << "------Function Name: ";
+		errs().write_escaped(F.getName())<< "------------\n";
 		errs() << "Getting instructions: \n";
+
+
+	        #if DEBUG
+		errs() << "Printing function that is being run through the pass before modification:\n";
+		for(Function::iterator o = F.begin(), oe = F.end(); o != oe; ++o){
+		  BasicBlock* OB = o;
+		  for(BasicBlock::iterator oI = OB->begin(), oIE = OB->end(); oI != oIE; ++oI){
+		    Instruction *origInstr = oI;
+		    errs() << *origInstr << "\n";
+		  }
+		}
+		#endif
+
+		
+		// Step 1: (iterate over all instructions)
 		for(Function::iterator b = F.begin(), be = F.end(); b != be; ++b){
 			BasicBlock* BB = b;
 			for(BasicBlock::iterator i = BB->begin(), ie = BB->end(); i != ie; ++i){
@@ -91,14 +106,16 @@ struct Hello :  public FunctionPass
 					CallInst *CI = cast<CallInst>(IN);
 					Function* callingFunc = CI->getCalledFunction();
 					if(callingFunc && callingFunc->getName().front() == 'p' && callingFunc->getName() != "printf"){
-						errs() << "Cloning " << callingFunc->getName() << "\n";
+						errs() << "Cloning function: " << callingFunc->getName() << "\n";
+						// Step 3:
 						llvm::ValueToValueMapTy VMap;
 						llvm::ClonedCodeInfo *CodeInfo = (ClonedCodeInfo *)malloc(sizeof(ClonedCodeInfo));
 						// TODO: Determine if correct assignment to CodeInfo
 						CodeInfo->ContainsCalls = false;
 						CodeInfo->ContainsDynamicAllocas = false;
 						Function *clonedFunc = llvm::CloneFunction(callingFunc, VMap, CodeInfo);
-
+						clonedFunc->setName("cloned");
+						
 						// For testing purposes - Make sure cloned functions are identical
 						#if DEBUG
 						errs() << "Printing Original Function:\n";
@@ -111,13 +128,14 @@ struct Hello :  public FunctionPass
 						}
 						#endif
 											
-						//errs() << "Printing cloned function:\n";
+						// Set 4 and 5:
 						for(Function::iterator c = clonedFunc->begin(), ce = clonedFunc->end(); c != ce; ++c){
 							BasicBlock *CB = c;
 							for(BasicBlock::iterator cI = CB->begin(), cIE = CB->end(); cI != cIE; ++cI){
 								Instruction *clonInstr = cI;
-								//errs() << *clonInstr << "\n";
-								if(isa<ReturnInst>(clonInstr)){									
+								if(isa<ReturnInst>(clonInstr)){
+	 							       // We encontered a return instruction in the function
+								  
 									Value* retVal = cast<ReturnInst>(clonInstr)->getReturnValue();
 									if(retVal){
 										errs() << "Returning " << *retVal << "\n";
@@ -139,10 +157,26 @@ struct Hello :  public FunctionPass
 
 									// Insert a call to the pop_direct_branch function right before the return call
 									// and after the new Store Instruction
+									// TODO: Will this still be called if the function dosen't have a return statement
+									
 									CallInst* pop_call = CallInst::Create(func_pop_direct_branch, "", clonInstr);
 								}
 							}
 						}
+
+						// Step 6:
+						// If the function had a return value then an instruction to load if from the global variable would be insrted after the function call
+
+						// Step 7:
+						// CI is the call instruction that called the function that needs to be cloned
+						// set the call instruction to call our cloned function insted of the original one
+
+						// Method 1:
+						//CallInst* cloned_call = CallInst::Create( clonedFunc, CI->getCalledValue(), "", CI);
+						//CI->removeFromParent();
+						
+						// Method 2:
+						CI->setCalledFunction( clonedFunc );
 
 						#if DEBUG
 						errs() << "Printing Cloned and Modified Function:\n";
@@ -155,11 +189,27 @@ struct Hello :  public FunctionPass
 						}
 						#endif
 
-					errs() << "Done with function call: " << callingFunc->getName() << "\n";
+						errs() << "Done with function cloning of: " << callingFunc->getName() << "\n";
 					}
 				}
 			}
 		}
+
+	        #if DEBUG
+		errs() << "Printing function that was run through the pass after modification:\n";
+		for(Function::iterator o = F.begin(), oe = F.end(); o != oe; ++o){
+		  BasicBlock* OB = o;
+		  for(BasicBlock::iterator oI = OB->begin(), oIE = OB->end(); oI != oIE; ++oI){
+		    Instruction *origInstr = oI;
+		    errs() << *origInstr << "\n";
+		  }
+		}
+                #endif
+
+		errs() << "~~~~~~~~~~~~~~Done with: " << F.getName() << "~~~~~~~~~~~~~~~~~\n";
+
+		
+		// TODO: Set this to true if we made modifications?
 		return false;
 	}
 	};
