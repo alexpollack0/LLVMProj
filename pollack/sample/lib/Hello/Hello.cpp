@@ -1,17 +1,3 @@
-//===- Hello.cpp - Example code from "Writing an LLVM Pass" ---------------===//
-//
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
-//
-//===----------------------------------------------------------------------===//
-//
-// This file implements two versions of the LLVM "Hello World" pass described
-// in docs/WritingAnLLVMPass.html
-//
-//===----------------------------------------------------------------------===//
-
 #define DEBUG_TYPE "hello"
 #include "llvm/Pass.h"
 #include "llvm/IR/Function.h"
@@ -34,14 +20,16 @@ struct Hello :  public FunctionPass
 
         /** Constructor. */
 	static char ID;
-        Function* func_pop_direct_branch;
 	Hello() : FunctionPass(ID) {
 	}
+
+	GlobalVariable* gvar_int32_g;
+        Function*       func_pop_direct_branch;
 
 	virtual bool doInitialization(Module &M){
 
 		
-		GlobalVariable* gvar_int32_g = new GlobalVariable(M,
+		gvar_int32_g = new GlobalVariable(M,
 			IntegerType::get(M.getContext(),32),
 			false,
 			GlobalValue::ExternalLinkage, /*TODO: Check that linkage is correct */
@@ -50,13 +38,19 @@ struct Hello :  public FunctionPass
 		gvar_int32_g->setAlignment(4);
 
 
-		func_pop_direct_branch = mod->getFunction("pop_direct_branch");
+		func_pop_direct_branch = M.getFunction("pop_direct_branch");
+	       
 		if (!func_pop_direct_branch) {
+
+	          errs() << "Could not find function \"pop_direct_branch\"" << "\n";
+	  
+	          #if 0
 		  func_pop_direct_branch = Function::Create(
 							    /*Type=*/FuncTy_6,
 							    /*Linkage=*/GlobalValue::ExternalLinkage,
-							    /*Name=*/"pop_direct_branch", mod); 
+							    /*Name=*/"pop_direct_branch", M); 
 		  func_pop_direct_branch->setCallingConv(CallingConv::C);
+		  #endif
 		}
 		AttributeSet func_pop_direct_branch_PAL;
 		{
@@ -66,11 +60,11 @@ struct Hello :  public FunctionPass
 		    AttrBuilder B;
 		    B.addAttribute(Attribute::NoUnwind);
 		    B.addAttribute(Attribute::UWTable);
-		    PAS = AttributeSet::get(mod->getContext(), ~0U, B);
+		    PAS = AttributeSet::get(M.getContext(), ~0U, B);
 		  }
   
 		  Attrs.push_back(PAS);
-		  func_pop_direct_branch_PAL = AttributeSet::get(mod->getContext(), Attrs);
+		  func_pop_direct_branch_PAL = AttributeSet::get(M.getContext(), Attrs);
   
 		}
 		func_pop_direct_branch->setAttributes(func_pop_direct_branch_PAL);
@@ -93,10 +87,10 @@ struct Hello :  public FunctionPass
 			for(BasicBlock::iterator i = BB->begin(), ie = BB->end(); i != ie; ++i){
 				Instruction* IN = i;
 				if(isa<CallInst>(*IN)){
-					//errs() << *IN << "\n";
+				        //errs() << *IN << "\n";
 					CallInst *CI = cast<CallInst>(IN);
-					Function* callingFunc = CI->getCalledFunction();			
-					if(callingFunc->getName().front() == 'p' && callingFunc->getName() != "printf"){
+					Function* callingFunc = CI->getCalledFunction();
+					if(callingFunc && callingFunc->getName().front() == 'p' && callingFunc->getName() != "printf"){
 						errs() << "Cloning " << callingFunc->getName() << "\n";
 						llvm::ValueToValueMapTy VMap;
 						llvm::ClonedCodeInfo *CodeInfo = (ClonedCodeInfo *)malloc(sizeof(ClonedCodeInfo));
@@ -107,6 +101,7 @@ struct Hello :  public FunctionPass
 
 						// For testing purposes - Make sure cloned functions are identical
 						#if DEBUG
+						errs() << "Printing Original Function:\n";
 						for(Function::iterator o = callingFunc->begin(), oe = callingFunc->end(); o != oe; ++o){
 							BasicBlock* OB = o;
 							for(BasicBlock::iterator oI = OB->begin(), oIE = OB->end(); oI != oIE; ++oI){
@@ -115,25 +110,52 @@ struct Hello :  public FunctionPass
 							} 
 						}
 						#endif
-
-
-						// Add the call to pop_direct_branch
-						//						CallInst* pop_call = CallInst::Create(func_pop_direct_branch,
-										      "",
-										      
-
-
-						
-						#if DEBUG
-						errs() << "Printing cloned function:\n";
+											
+						//errs() << "Printing cloned function:\n";
 						for(Function::iterator c = clonedFunc->begin(), ce = clonedFunc->end(); c != ce; ++c){
 							BasicBlock *CB = c;
 							for(BasicBlock::iterator cI = CB->begin(), cIE = CB->end(); cI != cIE; ++cI){
 								Instruction *clonInstr = cI;
-								errs() << *clonInstr << "\n";
+								//errs() << *clonInstr << "\n";
+								if(isa<ReturnInst>(clonInstr)){									
+									Value* retVal = cast<ReturnInst>(clonInstr)->getReturnValue();
+									if(retVal){
+										errs() << "Returning " << *retVal << "\n";
+										// Store return value in g
+										StoreInst *str     = new StoreInst(retVal, gvar_int32_g, clonInstr);										
+										
+										#if DEBUG
+										for(BasicBlock::iterator strI = CB->begin(), strIE = CB->end(); strI != strIE; ++strI){
+											Instruction *clonInstrStr = strI;
+											errs() << *clonInstrStr << "\n";
+										}
+										#endif
+										// TODO: Do we need to remove cloneInstr from function?
+									}
+									else{
+										errs() << "Returning void\n";
+										// Don't need to store to g
+									}
+
+									// Insert a call to the pop_direct_branch function right before the return call
+									// and after the new Store Instruction
+									CallInst* pop_call = CallInst::Create(func_pop_direct_branch, "", clonInstr);
+								}
 							}
 						}
+
+						#if DEBUG
+						errs() << "Printing Cloned and Modified Function:\n";
+						for(Function::iterator o = clonedFunc->begin(), oe = clonedFunc->end(); o != oe; ++o){
+							BasicBlock* OB = o;
+							for(BasicBlock::iterator oI = OB->begin(), oIE = OB->end(); oI != oIE; ++oI){
+								Instruction *origInstr = oI;
+								errs() << *origInstr << "\n";
+							} 
+						}
 						#endif
+
+					errs() << "Done with function call: " << callingFunc->getName() << "\n";
 					}
 				}
 			}
