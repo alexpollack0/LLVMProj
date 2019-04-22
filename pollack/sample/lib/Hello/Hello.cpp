@@ -7,7 +7,8 @@
 #include "llvm/ADT/ValueMap.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Utils/Cloning.h"
-
+#include "llvm/IR/SymbolTableListTraits.h"
+#include <vector>
 using namespace llvm;
 
 
@@ -22,9 +23,10 @@ struct Hello :  public FunctionPass
 	static char ID;
 	Hello() : FunctionPass(ID) {
 	}
-
+	
 	GlobalVariable* gvar_int32_g;
         Function*       func_pop_direct_branch;
+	std::vector<llvm::StringRef> funcNames;
 
 	virtual bool doInitialization(Module &M){
 
@@ -37,6 +39,12 @@ struct Hello :  public FunctionPass
 			"g");
 		gvar_int32_g->setAlignment(4);
 
+		for(Module::iterator iterF = M.begin(), iterE = M.end(); iterF != iterE; ++iterF){
+			Function *currFunc = iterF;
+			if(!currFunc->isDeclaration()){
+				funcNames.push_back(currFunc->getName());
+			}
+		}
 
 		func_pop_direct_branch = M.getFunction("pop_direct_branch");
 	       
@@ -90,7 +98,7 @@ struct Hello :  public FunctionPass
 				        //errs() << *IN << "\n";
 					CallInst *CI = cast<CallInst>(IN);
 					Function* callingFunc = CI->getCalledFunction();
-					if(callingFunc && callingFunc->getName().front() == 'p' && callingFunc->getName() != "printf"){
+					if(callingFunc && callingFunc->getName().front() == 'p' && (std::find(funcNames.begin(), funcNames.end(), callingFunc->getName()) != funcNames.end())){
 						errs() << "Cloning " << callingFunc->getName() << "\n";
 						llvm::ValueToValueMapTy VMap;
 						llvm::ClonedCodeInfo *CodeInfo = (ClonedCodeInfo *)malloc(sizeof(ClonedCodeInfo));
