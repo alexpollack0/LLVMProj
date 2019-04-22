@@ -16,7 +16,7 @@ PROJ_SRC_ROOT := $(subst //,/,/homes/pollack0/LLVMProj/pollack/obj/../sample)
 PROJ_OBJ_ROOT := $(subst //,/,@abs_top_objdir@)
 
 # Set the root directory of this project's install prefix
-PROJ_INSTALL_ROOT := /homes/pollack0/LLVMProj//pollack/opt
+PROJ_INSTALL_ROOT := /homes/pollack0/LLVMProj/pollack/opt
 
 WARNINGS :=-pedantic \
         -Wall \

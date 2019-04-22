@@ -8,6 +8,8 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/IR/SymbolTableListTraits.h"
+#include "llvm/IR/Constants.h"
+
 #include <vector>
 using namespace llvm;
 
@@ -27,10 +29,11 @@ struct Hello :  public FunctionPass
 	GlobalVariable* gvar_int32_g;
         Function*       func_pop_direct_branch;
 	std::vector<llvm::StringRef> funcNames;
+	llvm::ConstantInt* const_int32_0;
 
 	virtual bool doInitialization(Module &M){
 
-		
+		const_int32_0 = ConstantInt::get(M.getContext(), llvm::APInt(32, StringRef("0"), 10));
 		gvar_int32_g = new GlobalVariable(M,
 			IntegerType::get(M.getContext(),32),
 			false,
@@ -119,7 +122,6 @@ struct Hello :  public FunctionPass
 						}
 						#endif
 											
-						//errs() << "Printing cloned function:\n";
 						for(Function::iterator c = clonedFunc->begin(), ce = clonedFunc->end(); c != ce; ++c){
 							BasicBlock *CB = c;
 							for(BasicBlock::iterator cI = CB->begin(), cIE = CB->end(); cI != cIE; ++cI){
@@ -130,7 +132,7 @@ struct Hello :  public FunctionPass
 									if(retVal){
 										errs() << "Returning " << *retVal << "\n";
 										// Store return value in g
-										StoreInst *str     = new StoreInst(retVal, gvar_int32_g, clonInstr);										
+										StoreInst *str = new StoreInst(retVal, gvar_int32_g, clonInstr);										
 										
 										#if DEBUG
 										for(BasicBlock::iterator strI = CB->begin(), strIE = CB->end(); strI != strIE; ++strI){
@@ -138,7 +140,18 @@ struct Hello :  public FunctionPass
 											errs() << *clonInstrStr << "\n";
 										}
 										#endif
-										// TODO: Do we need to remove cloneInstr from function?
+
+										Instruction *nextInstr = ++i;
+										errs() << "Previous Instruction: " << *IN << "\n";
+										errs() << "Next Instruction: " << *nextInstr << "\n";
+										
+										LoadInst* load_from_g = new LoadInst(gvar_int32_g, "", nextInstr);
+										
+										// Add 0 to load_from_g and store in IN
+										BinaryOperator* addInstr = BinaryOperator::Create(Instruction::Add, load_from_g, const_int32_0, "", nextInstr);
+										StoreInst *strG = new StoreInst(addInstr, IN, false, nextInstr);
+										--i;
+										//errs() << "New instruction to save from g " << *strG << "\n";
 									}
 									else{
 										errs() << "Returning void\n";
