@@ -32,12 +32,10 @@ namespace {
 
 		virtual bool doInitialization(Module &M){
 
-			const_int32_0 = ConstantInt::get(M.getContext(), llvm::APInt(32, StringRef("0"), 10));
-
 			gvar_int32_g = new GlobalVariable(M,
 				IntegerType::get(M.getContext(),32),
 				false,
-				GlobalValue::InternalLinkage, /*TODO: Check that linkage is correct */
+				GlobalValue::ExternalLinkage, /*TODO: Check that linkage is correct */
 				0,
 				"g");
 				gvar_int32_g->setAlignment(4);
@@ -86,11 +84,11 @@ namespace {
 						Function *F = iterF;
 
 						// Only examine user-defined functions 
-						if(std::find(funcNames.begin(), funcNames.end(), callingFunc->getName()) != funcNames.end()){
+						if(std::find(funcNames.begin(), funcNames.end(), F->getName()) != funcNames.end()){
 
 							#if DEBUG
 								errs() << "Function Name: ";
-								errs().write_escaped(F.getName())<< "\n";
+								errs().write_escaped(F->getName())<< "\n";
 							#endif
 
 						}
