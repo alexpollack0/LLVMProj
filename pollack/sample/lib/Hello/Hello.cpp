@@ -9,6 +9,7 @@
 #include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/IR/SymbolTableListTraits.h"
 #include "llvm/IR/Constants.h"
+#include "llvm/PassAnalysisSupport.h"
 
 #include <vector>
 using namespace llvm;
@@ -116,6 +117,7 @@ namespace {
 								#if DEBUG // Print name of function to be cloned and the module
 									errs() << "Cloning " << callingFunc->getName() << "\n";
 									errs() << "Function's original Mod: " << (callingFunc->getParent())->getModuleIdentifier() << "\n";
+									//errs() << "Func's subProgram: " << callingFunc->getSubprogram() << "\n";
 								#endif
 
 								llvm::ValueToValueMapTy VMap;
@@ -125,6 +127,14 @@ namespace {
 								CodeInfo->ContainsCalls = false;
 								CodeInfo->ContainsDynamicAllocas = false;
 								Function *clonedFunc = llvm::CloneFunction(callingFunc, VMap, CodeInfo);							
+
+								//errs() << "cloned function's Mod: " << (clonedFunc->getParent()) << "\n";
+
+								Twine f_name = clonedFunc->getName();
+
+								//errs() << f_name << "\n";
+
+								clonedFunc->setName("__cloned__" + f_name);
 
 								#if DEBUG //Make sure cloned functions are identical
 									errs() << "Printing Original Function:\n";
@@ -210,12 +220,12 @@ namespace {
 										errs() << *origInstr << "\n";
 									}
 								}
-								errs() << "cloned function's Mod: " << (callingFunc->getParent())->getModuleIdentifier() << "\n";
+								
 								#endif
 
 								// Set the calling instruciton to call the cloned function insted of the original function
 								CI->setCalledFunction(clonedFunc);
-
+								M.getFunctionList().push_front(clonedFunc);
 								// CallInst *cloned_call = CallInst::Create( clonedFunc, CI->getArgOperand(0), "", CI);
 								// CI->dropAllReferences();
 								// CI->eraseFromParent();					
@@ -246,7 +256,32 @@ namespace {
 			return true;
 		}
 	};
+
+// 	struct FPass :  public FunctionPass
+// 	{
+
+// 		/** Constructor. */
+// 		static char ID;
+// 		FPass() : FunctionPass(ID) {
+// 		}
+
+// 		virtual bool doInitialization(Module &M){
+// 			AnalysisUsage* au = new AnalysisUsage();
+// 			au->addRequired<Hello>();
+
+// 			return true;
+// 		}
+
+// 		virtual bool runOnFunction(llvm::Function &F){
+// 			errs() << "Running function pass!!!\n";
+
+// 			return true;
+// 		}
+// 	};
+
 }
 
 char Hello::ID = 0;
 static RegisterPass<Hello> X("hello", "Clone Test Pass", false, false);
+//char FPass::ID = 1;
+//static RegisterPass<FPass> Y("fpass", "Clone function pass", false, false);
