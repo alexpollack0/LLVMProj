@@ -33,15 +33,18 @@ namespace {
 
 		virtual bool doInitialization(Module &M){
 
-			gvar_int32_g = new GlobalVariable(M, IntegerType::get(M.getContext(),32), false, GlobalValue::ExternalLinkage, 0,"g");
-			gvar_int32_g->setAlignment(4);
-
 			for(Module::iterator iterF = M.begin(), iterE = M.end(); iterF != iterE; ++iterF){
 				Function *currFunc = iterF;
 				if(!currFunc->isDeclaration()){
 					funcNames.push_back(currFunc->getName());
 				}
 			}
+
+			gvar_int32_g = new GlobalVariable(M, IntegerType::get(M.getContext(),32), false, GlobalValue::ExternalLinkage, 0,"g");
+			gvar_int32_g->setAlignment(4);
+
+			ConstantInt* const_int32_0 = ConstantInt::get(M.getContext(), APInt(32, StringRef("0"), 10));
+			gvar_int32_g->setInitializer(const_int32_0);
 
 			func_pop_direct_branch = M.getFunction("pop_direct_branch");
 
@@ -85,6 +88,7 @@ namespace {
 		* @return true if the module was modified; false otherwise
 		*/
 		virtual bool runOnModule(llvm::Module &M){
+
 			// Iterate through all functions in the module
 			for(Module::iterator iterF = M.begin(), iterE = M.end(); iterF != iterE; ++iterF){
 
@@ -95,7 +99,9 @@ namespace {
 				errs() << "Contents before modification:\n";
 				for(Function::iterator b = F->begin(), be = F->end(); b != be; ++b){
 					BasicBlock* BB = b;
+					errs() << "it" << "\n";
 					for(BasicBlock::iterator i = BB->begin(), ie = BB->end(); i != ie; ++i){
+						errs() << "bit\n";
 						Instruction* IN = i;
 						errs() << *IN << "\n";
 					}
@@ -211,7 +217,7 @@ namespace {
 									}
 								}
 
-								#if 1
+								#if DEBUG
 								errs() << "Printing Cloned and Modified Function:\n";
 								for(Function::iterator o = clonedFunc->begin(), oe = clonedFunc->end(); o != oe; ++o){
 									BasicBlock* OB = o;
@@ -250,7 +256,7 @@ namespace {
 				}
 				#endif
 
-
+				
 			}
 
 			return true;
