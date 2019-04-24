@@ -37,3 +37,10 @@
 # User specific files
 sample/obj
 sample/opt
+
+pollack/obj
+pollack/opt
+
+*.bc
+*.s
+*.x

@@ -189,7 +189,7 @@ namespace {
 												StoreInst *strG = new StoreInst(load_from_g, nextInstr->getOperand(1), false, nextInstr);
 
 												#if DEBUG
-													errs() << "Printing new str instruction: " << *strG << "\n";
+													//errs() << "Printing new str instruction: " << *strG << "\n";
 												#endif
 
 												// Remove nextInstr
