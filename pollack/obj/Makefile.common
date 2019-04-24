@@ -10,13 +10,13 @@ LLVM_SRC_ROOT = /afs/glue/class/old/enee/759c/llvm/llvm-3.4.src
 LLVM_OBJ_ROOT = /afs/glue/class/old/enee/759c/llvm/llvm-3.4-install/obj
 
 # Set the directory root of this project's source files
-PROJ_SRC_ROOT := $(subst //,/,/homes/pollack0/LLVMProj/pollack/obj/../sample)
+PROJ_SRC_ROOT := $(subst //,/,/homes/cbrando/enee645/LLVMProj/pollack/obj/../sample)
 
 # Set the root directory of this project's object files
 PROJ_OBJ_ROOT := $(subst //,/,@abs_top_objdir@)
 
 # Set the root directory of this project's install prefix
-PROJ_INSTALL_ROOT := /homes/pollack0/LLVMProj/pollack/opt
+PROJ_INSTALL_ROOT := /homes/cbrando/enee645/LLVMProj/pollack/opt
 
 WARNINGS :=-pedantic \
         -Wall \
