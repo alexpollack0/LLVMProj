@@ -79,7 +79,7 @@ namespace {
 				func_pop_direct_branch->setAttributes(func_pop_direct_branch_PAL);
 			}
 
-			return true;	
+			return true;
 		}
 
 		/**
@@ -116,7 +116,7 @@ namespace {
 						if(isa<CallInst>(*IN)){
 
 							CallInst *CI = cast<CallInst>(IN);
-							Function* callingFunc = CI->getCalledFunction();							
+							Function* callingFunc = CI->getCalledFunction();
 
 							if(callingFunc && callingFunc->getName().front() == 'p' && (std::find(funcNames.begin(), funcNames.end(), callingFunc->getName()) != funcNames.end())){
 
@@ -132,7 +132,7 @@ namespace {
 								// TODO: Determine if correct assignment to CodeInfo
 								CodeInfo->ContainsCalls = false;
 								CodeInfo->ContainsDynamicAllocas = false;
-								Function *clonedFunc = llvm::CloneFunction(callingFunc, VMap, CodeInfo);							
+								Function *clonedFunc = llvm::CloneFunction(callingFunc, VMap, CodeInfo);
 
 								//errs() << "cloned function's Mod: " << (clonedFunc->getParent()) << "\n";
 
@@ -178,25 +178,6 @@ namespace {
 													}
 												#endif
 
-												Instruction *nextInstr = ++i;
-
-												#if DEBUG
-													errs() << "Previous Instruction: " << *IN << "\n";
-													errs() << "Next Instruction: " << *nextInstr << "\n";
-												#endif
-
-												LoadInst* load_from_g = new LoadInst(gvar_int32_g, "", nextInstr);
-												StoreInst *strG = new StoreInst(load_from_g, nextInstr->getOperand(1), false, nextInstr);
-
-												#if DEBUG
-													//errs() << "Printing new str instruction: " << *strG << "\n";
-												#endif
-
-												// Remove nextInstr
-												++i;
-												nextInstr->dropAllReferences();
-												nextInstr->eraseFromParent();
-
 												#if DEBUG // Useful for testing that instructions have been added/deleted properly
 													errs() << "Printing earlier function call: \n";
 													for(BasicBlock::iterator cIEdit = BB->begin(), cIEditE = BB->end(); cIEdit != cIEditE; ++cIEdit){
@@ -212,7 +193,7 @@ namespace {
 
 											// Insert a call to the pop_direct_branch function right before the return call
 											// and after the new Store Instruction
-											CallInst* pop_call = CallInst::Create(func_pop_direct_branch, "", clonInstr);											
+											CallInst* pop_call = CallInst::Create(func_pop_direct_branch, "", clonInstr);
 										}
 									}
 								}
@@ -226,15 +207,40 @@ namespace {
 										errs() << *origInstr << "\n";
 									}
 								}
-								
+
 								#endif
 
 								// Set the calling instruciton to call the cloned function insted of the original function
 								CI->setCalledFunction(clonedFunc);
 								M.getFunctionList().push_front(clonedFunc);
+								Instruction *nextInstr = ++i;
+								errs() << "Printing..." << *nextInstr << "\n";
+
+								if(isa<StoreInst>(nextInstr)){
+									#if DEBUG
+										errs() << "Previous Instruction: " << *IN << "\n";
+										errs() << "Next Instruction: " << *nextInstr << "\n";
+									#endif
+
+									LoadInst* load_from_g = new LoadInst(gvar_int32_g, "", nextInstr);
+									StoreInst *strG = new StoreInst(load_from_g, nextInstr->getOperand(1), false, nextInstr);
+
+									#if DEBUG
+										//errs() << "Printing new str instruction: " << *strG << "\n";
+									#endif
+
+									// Remove nextInstr
+									++i;
+									nextInstr->dropAllReferences();
+									nextInstr->eraseFromParent();
+
+								}
+								else{
+									--i;
+								}
 								// CallInst *cloned_call = CallInst::Create( clonedFunc, CI->getArgOperand(0), "", CI);
 								// CI->dropAllReferences();
-								// CI->eraseFromParent();					
+								// CI->eraseFromParent();
 
 								#if DEBUG
 									errs() << "Done with function call: " << callingFunc->getName() << "\n";
@@ -256,7 +262,7 @@ namespace {
 				}
 				#endif
 
-				
+
 			}
 
 			return true;
