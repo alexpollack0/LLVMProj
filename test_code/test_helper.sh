@@ -24,6 +24,12 @@ for d in $PWD/*.c; do
 
     # Create the executables that have been run through our pass
     gcc "${d%.*}_cloned.s" -o "${d%.*}_cloned.x"
+
+    # Create the IR files for the originals
+    llvm-dis "${d%.*}.bc" -o "${d%.*}_original.ir"
+
+    # Create th IR files for the ones that went through our pass
+    llvm-dis "${d%.*}_cloned.bc" -o "${d%.*}_cloned.ir"
 done
 
 
