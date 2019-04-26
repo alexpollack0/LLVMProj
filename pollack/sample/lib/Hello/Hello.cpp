@@ -17,6 +17,7 @@ using namespace llvm;
 
 #define DEBUG 1
 
+Hello::checkCloned(llvm::Function& F);
 
 namespace {
 	struct Hello :  public ModulePass
@@ -82,6 +83,68 @@ namespace {
 			return true;	
 		}
 
+		llvm::Function* checkCloned(llvm::Module &M, llvm::Function& F){
+			Function* func = M.getFunction("__cloned__" + F.getName());
+			return func;
+		}
+
+		void changeCall(llvm::Function& clonedFunction, llvm::Instruction *nextInstr){
+
+		}
+
+		llvm::Function* cloneFunc(llvm::Module &M, llvm::Function& originalFunc){
+			llvm::ValueToValueMapTy VMap;
+			llvm::ClonedCodeInfo *CodeInfo = (ClonedCodeInfo *)malloc(sizeof(ClonedCodeInfo));
+
+			// TODO: Determine if correct assignment to CodeInfo
+			CodeInfo->ContainsCalls = false;
+			CodeInfo->ContainsDynamicAllocas = false;
+			Function *clonedFunc = llvm::CloneFunction(callingFunc, VMap, CodeInfo);
+
+			Twine f_name = clonedFunc->getName();			
+
+			clonedFunc->setName("__cloned__" + f_name);
+
+			for(Function::iterator c = clonedFunc->begin(), ce = clonedFunc->end(); c != ce; ++c){
+				BasicBlock *CB = c;
+				for(BasicBlock::iterator cI = CB->begin(), cIE = CB->end(); cI != cIE; ++cI){
+					Instruction *clonInstr = cI;
+
+					if(isa<ReturnInst>(clonInstr)){
+
+						Value* retVal = cast<ReturnInst>(clonInstr)->getReturnValue();
+
+						if(retVal){
+
+							#if DEBUG
+								errs() << "Returning " << *retVal << "\n";
+							#endif
+
+							// Store return value in g
+							StoreInst *str = new StoreInst(retVal, gvar_int32_g, clonInstr);
+
+							#if DEBUG
+								for(BasicBlock::iterator strI = CB->begin(), strIE = CB->end(); strI != strIE; ++strI){
+									Instruction *clonInstrStr = strI;
+									errs() << *clonInstrStr << "\n";
+								}
+							#endif
+
+						}else{
+								#if DEBUG
+									errs() << "Returning void\n";
+								// Don't need to store to g
+								#endif
+						}
+
+						// Insert a call to the pop_direct_branch function right before the return call
+						// and after the new Store Instruction
+						CallInst* pop_call = CallInst::Create(func_pop_direct_branch, "", clonInstr);											
+					}
+				}
+			}
+		}
+
 		/**
 		* @brief Runs this pass on the given module.
 		* @param [in,out] M The module to analyze
@@ -108,6 +171,7 @@ namespace {
 				}
 				#endif
 
+				std::vector<Function*> clonedFunctions;
 
 				for(Function::iterator b = F->begin(), be = F->end(); b != be; ++b){
 					BasicBlock* BB = b;
@@ -118,7 +182,17 @@ namespace {
 							CallInst *CI = cast<CallInst>(IN);
 							Function* callingFunc = CI->getCalledFunction();							
 
-							if(callingFunc && callingFunc->getName().front() == 'p' && (std::find(funcNames.begin(), funcNames.end(), callingFunc->getName()) != funcNames.end())){
+							if(callingFunc && callingFunc->getName().front() == 'p' && 
+								(std::find(funcNames.begin(), funcNames.end(), callingFunc->getName()) != funcNames.end())){
+
+								Function* clonedFunc = checkCloned(M, callingFunc);
+
+								// If the function is not already cloned at this call site 
+								if (!clonedFunc){
+									clonedFunc = cloneFunc(M, callingFunc);
+									// This cloned function will be added to the module after the function being parsed is added
+									clonedFunctions.push_back(clonedFunc);
+								}
 
 								#if DEBUG // Print name of function to be cloned and the module
 									errs() << "Cloning " << callingFunc->getName() << "\n";
@@ -126,21 +200,7 @@ namespace {
 									//errs() << "Func's subProgram: " << callingFunc->getSubprogram() << "\n";
 								#endif
 
-								llvm::ValueToValueMapTy VMap;
-								llvm::ClonedCodeInfo *CodeInfo = (ClonedCodeInfo *)malloc(sizeof(ClonedCodeInfo));
-
-								// TODO: Determine if correct assignment to CodeInfo
-								CodeInfo->ContainsCalls = false;
-								CodeInfo->ContainsDynamicAllocas = false;
-								Function *clonedFunc = llvm::CloneFunction(callingFunc, VMap, CodeInfo);							
-
-								//errs() << "cloned function's Mod: " << (clonedFunc->getParent()) << "\n";
-
-								Twine f_name = clonedFunc->getName();
-
-								//errs() << f_name << "\n";
-
-								clonedFunc->setName("__cloned__" + f_name);
+								
 
 								#if DEBUG //Make sure cloned functions are identical
 									errs() << "Printing Original Function:\n";
@@ -153,71 +213,8 @@ namespace {
 									}
 								#endif
 
-								for(Function::iterator c = clonedFunc->begin(), ce = clonedFunc->end(); c != ce; ++c){
-									BasicBlock *CB = c;
-									for(BasicBlock::iterator cI = CB->begin(), cIE = CB->end(); cI != cIE; ++cI){
-										Instruction *clonInstr = cI;
-
-										if(isa<ReturnInst>(clonInstr)){
-
-											Value* retVal = cast<ReturnInst>(clonInstr)->getReturnValue();
-
-											if(retVal){
-
-												#if DEBUG
-													errs() << "Returning " << *retVal << "\n";
-												#endif
-
-												// Store return value in g
-												StoreInst *str = new StoreInst(retVal, gvar_int32_g, clonInstr);
-
-												#if DEBUG
-													for(BasicBlock::iterator strI = CB->begin(), strIE = CB->end(); strI != strIE; ++strI){
-														Instruction *clonInstrStr = strI;
-														errs() << *clonInstrStr << "\n";
-													}
-												#endif
-
-												Instruction *nextInstr = ++i;
-
-												#if DEBUG
-													errs() << "Previous Instruction: " << *IN << "\n";
-													errs() << "Next Instruction: " << *nextInstr << "\n";
-												#endif
-
-												LoadInst* load_from_g = new LoadInst(gvar_int32_g, "", nextInstr);
-												StoreInst *strG = new StoreInst(load_from_g, nextInstr->getOperand(1), false, nextInstr);
-
-												#if DEBUG
-													//errs() << "Printing new str instruction: " << *strG << "\n";
-												#endif
-
-												// Remove nextInstr
-												++i;
-												nextInstr->dropAllReferences();
-												nextInstr->eraseFromParent();
-
-												#if DEBUG // Useful for testing that instructions have been added/deleted properly
-													errs() << "Printing earlier function call: \n";
-													for(BasicBlock::iterator cIEdit = BB->begin(), cIEditE = BB->end(); cIEdit != cIEditE; ++cIEdit){
-														Instruction *instrU = cIEdit;
-														errs() << *instrU << "\n";
-													}
-												#endif
-
-											}else{
-													errs() << "Returning void\n";
-													// Don't need to store to g
-											}
-
-											// Insert a call to the pop_direct_branch function right before the return call
-											// and after the new Store Instruction
-											CallInst* pop_call = CallInst::Create(func_pop_direct_branch, "", clonInstr);											
-										}
-									}
-								}
-
-								#if DEBUG
+								
+								#if 0
 								errs() << "Printing Cloned and Modified Function:\n";
 								for(Function::iterator o = clonedFunc->begin(), oe = clonedFunc->end(); o != oe; ++o){
 									BasicBlock* OB = o;
@@ -225,13 +222,12 @@ namespace {
 										Instruction *origInstr = oI;
 										errs() << *origInstr << "\n";
 									}
-								}
-								
+								}								
 								#endif
 
 								// Set the calling instruciton to call the cloned function insted of the original function
 								CI->setCalledFunction(clonedFunc);
-								M.getFunctionList().push_front(clonedFunc);
+															
 								// CallInst *cloned_call = CallInst::Create( clonedFunc, CI->getArgOperand(0), "", CI);
 								// CI->dropAllReferences();
 								// CI->eraseFromParent();					
@@ -243,6 +239,11 @@ namespace {
 						}
 					}
 				}
+
+				// Add all the cloned functions to the module
+				for ( int iCFunc = 0; iCFunc < clonedFunctions.size(); iCFunc++){
+					M.getFunctionList().push_back(clonedFunctions[iCFunc]);
+				}	
 
 				#if DEBUG // Print out contents of function after modification
 				errs() << "~~~~~~~~~~~~~~~~~~Parsing function: " << F->getName() << "~~~~~~~~~~~~~~~~~~~~\n";
@@ -261,6 +262,7 @@ namespace {
 
 			return true;
 		}
+		
 	};
 
 // 	struct FPass :  public FunctionPass
