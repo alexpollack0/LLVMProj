@@ -44,3 +44,4 @@ pollack/opt
 *.bc
 *.s
 *.x
+*.ir

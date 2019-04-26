@@ -16,7 +16,7 @@ void foo(int *y)
 {
     int p;
     p = pow2(*y);
-    *y = p + (*y)*2 + 1;  
+    *y = p + (*y)*2 + 1;
 }
 
 void print_int(int x)

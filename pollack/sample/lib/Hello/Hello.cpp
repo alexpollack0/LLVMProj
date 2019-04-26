@@ -172,34 +172,44 @@ namespace {
 							}
 							#endif
 
+
+							Instruction *nextInstr = ++i;
+
+							LoadInst* load_from_g = new LoadInst(gvar_int32_g, "", nextInstr);
+							CI->replaceAllUsesWith(load_from_g);
+
 							// Set the calling instruction to call the cloned function insted of the original function
 							CI->setCalledFunction(newClonedFunc);
 							M.getFunctionList().push_front(newClonedFunc);
 
-							Instruction *nextInstr = ++i;
+							
 
-							if(isa<StoreInst>(nextInstr)){
-								#if DEBUG
-								errs() << "Previous Instruction: " << *IN << "\n";
-								errs() << "Next Instruction: " << *nextInstr << "\n";
-								#endif
+							
 
-								LoadInst* load_from_g = new LoadInst(gvar_int32_g, "", nextInstr);
-								StoreInst *strG = new StoreInst(load_from_g, nextInstr->getOperand(1), false, nextInstr);
+							// 
+
+							// if(isa<StoreInst>(nextInstr)){
+							// 	#if DEBUG
+							// 	errs() << "Previous Instruction: " << *IN << "\n";
+							// 	errs() << "Next Instruction: " << *nextInstr << "\n";
+							// 	#endif
+
+							// 	LoadInst* load_from_g = new LoadInst(gvar_int32_g, "", nextInstr);
+							// 	StoreInst *strG = new StoreInst(load_from_g, nextInstr->getOperand(1), false, nextInstr);
 
 
-								// Remove nextInstr
-								//++i;
-								//nextInstr->dropAllReferences();
-								//nextInstr->eraseFromParent();
+							// 	// Remove nextInstr
+							// 	//++i;
+							// 	//nextInstr->dropAllReferences();
+							// 	//nextInstr->eraseFromParent();
 
-							}
-							else{
-								--i;
-							}
-							// CallInst *cloned_call = CallInst::Create( clonedFunc, CI->getArgOperand(0), "", CI);
-							// CI->dropAllReferences();
-							// CI->eraseFromParent();
+							// }
+							// else{
+							// 	--i;
+							// }
+							// // CallInst *cloned_call = CallInst::Create( clonedFunc, CI->getArgOperand(0), "", CI);
+							// // CI->dropAllReferences();
+							// // CI->eraseFromParent();
 
 							#if DEBUG
 							errs() << "Done with function call: " << callingFunc->getName() << "\n";
