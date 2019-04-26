@@ -17,9 +17,11 @@ using namespace llvm;
 
 #define DEBUG 1
 
-Hello::checkCloned(llvm::Function& F);
+
 
 namespace {
+	// llvm::Function* Hello::checkCloned(llvm::Function& F);
+	// llvm::Function* Hello::cloneF
 	struct Hello :  public ModulePass
 	{
 
@@ -80,26 +82,22 @@ namespace {
 				func_pop_direct_branch->setAttributes(func_pop_direct_branch_PAL);
 			}
 
-			return true;	
+			return true;
 		}
 
-		llvm::Function* checkCloned(llvm::Module &M, llvm::Function& F){
-			Function* func = M.getFunction("__cloned__" + F.getName());
+		llvm::Function* checkCloned(llvm::Module &M, llvm::Function* F){
+			Function* func = M.getFunction(("__cloned__" + F->getName()).str());
 			return func;
 		}
 
-		void changeCall(llvm::Function& clonedFunction, llvm::Instruction *nextInstr){
-
-		}
-
-		llvm::Function* cloneFunc(llvm::Module &M, llvm::Function& originalFunc){
+		llvm::Function* cloneFunc(llvm::Module &M, llvm::Function* originalFunc){
 			llvm::ValueToValueMapTy VMap;
 			llvm::ClonedCodeInfo *CodeInfo = (ClonedCodeInfo *)malloc(sizeof(ClonedCodeInfo));
 
 			// TODO: Determine if correct assignment to CodeInfo
 			CodeInfo->ContainsCalls = false;
 			CodeInfo->ContainsDynamicAllocas = false;
-			Function *clonedFunc = llvm::CloneFunction(callingFunc, VMap, CodeInfo);
+			Function *clonedFunc = llvm::CloneFunction(originalFunc, VMap, CodeInfo);
 
 			Twine f_name = clonedFunc->getName();			
 
@@ -143,6 +141,8 @@ namespace {
 					}
 				}
 			}
+
+			return clonedFunc;
 		}
 
 		/**
@@ -180,7 +180,7 @@ namespace {
 						if(isa<CallInst>(*IN)){
 
 							CallInst *CI = cast<CallInst>(IN);
-							Function* callingFunc = CI->getCalledFunction();							
+							Function* callingFunc = CI->getCalledFunction();
 
 							if(callingFunc && callingFunc->getName().front() == 'p' && 
 								(std::find(funcNames.begin(), funcNames.end(), callingFunc->getName()) != funcNames.end())){
@@ -200,7 +200,6 @@ namespace {
 									//errs() << "Func's subProgram: " << callingFunc->getSubprogram() << "\n";
 								#endif
 
-								
 
 								#if DEBUG //Make sure cloned functions are identical
 									errs() << "Printing Original Function:\n";
@@ -213,24 +212,52 @@ namespace {
 									}
 								#endif
 
-								
-								#if 0
-								errs() << "Printing Cloned and Modified Function:\n";
+								errs() << "Printing Cloned and Modified Function: "<< clonedFunc << "\n";
 								for(Function::iterator o = clonedFunc->begin(), oe = clonedFunc->end(); o != oe; ++o){
 									BasicBlock* OB = o;
 									for(BasicBlock::iterator oI = OB->begin(), oIE = OB->end(); oI != oIE; ++oI){
 										Instruction *origInstr = oI;
+										errs() << origInstr << "\n";
 										errs() << *origInstr << "\n";
 									}
 								}								
-								#endif
+
+								
+
+								// Change call to cloned call
 
 								// Set the calling instruciton to call the cloned function insted of the original function
 								CI->setCalledFunction(clonedFunc);
-															
+
+								Instruction *nextInstr = ++i;
+								errs() << "Printing..." << *nextInstr << "\n";
+
+								if(isa<StoreInst>(nextInstr)){
+									#if DEBUG
+										errs() << "Previous Instruction: " << *IN << "\n";
+										errs() << "Next Instruction: " << *nextInstr << "\n";
+									#endif
+
+									LoadInst* load_from_g = new LoadInst(gvar_int32_g, "", nextInstr);
+									StoreInst *strG = new StoreInst(load_from_g, nextInstr->getOperand(1), false, nextInstr);
+
+									#if DEBUG
+										//errs() << "Printing new str instruction: " << *strG << "\n";
+									#endif
+
+									// Remove nextInstr
+									++i;
+									nextInstr->dropAllReferences();
+									nextInstr->eraseFromParent();
+
+								}
+								else{
+									--i;
+								}
+
 								// CallInst *cloned_call = CallInst::Create( clonedFunc, CI->getArgOperand(0), "", CI);
 								// CI->dropAllReferences();
-								// CI->eraseFromParent();					
+								// CI->eraseFromParent();
 
 								#if DEBUG
 									errs() << "Done with function call: " << callingFunc->getName() << "\n";
@@ -257,7 +284,7 @@ namespace {
 				}
 				#endif
 
-				
+
 			}
 
 			return true;
