@@ -17,7 +17,7 @@ for d in $PWD/*.c; do
     gcc "${d%.*}_original.s" -o "${d%.*}_original.x"
 
     # Pass the bytecode files through our pass
-    opt -load ../pollack/opt/lib/libHello.so -hello "${d%.*}.bc" -o "${d%.*}_cloned.bc"
+    opt -load ../ClonePass/opt/lib/libClone.so -clone "${d%.*}.bc" -o "${d%.*}_cloned.bc"
     
     #  Create the asm files for the bytecode files that went through our pass
     llc "${d%.*}_cloned.bc" -o "${d%.*}_cloned.s"
