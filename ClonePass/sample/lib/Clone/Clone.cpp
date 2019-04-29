@@ -1,4 +1,3 @@
-#define DEBUG_TYPE "hello"
 #include "llvm/Pass.h"
 #include "llvm/IR/Function.h"
 #include "llvm/Support/Casting.h"
@@ -24,12 +23,12 @@ namespace {
 	std::vector<Function *> getClones(Function* currFunc);
 	bool entireClone(llvm::Module &M, Function *F);
 
-	struct Hello :  public ModulePass
+	struct Clone :  public ModulePass
 	{
 
 		/** Constructor. */
 		static char ID;
-		Hello() : ModulePass(ID) {
+		Clone() : ModulePass(ID) {
 		}
 
 		GlobalVariable* gvar_int32_g;
@@ -150,6 +149,17 @@ namespace {
 								#endif
 								newClonedFunc = buildClone(callingFunc, false);
 
+								Instruction *nextInstr = ++i;
+
+								LoadInst* load_from_g = new LoadInst(gvar_int32_g, "", nextInstr);
+								load_from_g->setAlignment(4);
+								CI->replaceAllUsesWith(load_from_g);
+
+								// Set the calling instruction to call the cloned function insted of the original function
+								CI->setCalledFunction(newClonedFunc);
+								M.getFunctionList().push_front(newClonedFunc);
+								clonedFuncs.push_back(newClonedFunc);
+
 							}
 							// Function has previously been cloned
 							else{
@@ -157,65 +167,17 @@ namespace {
 								#if DEBUG
 								errs() << "Re-cloning " << callingFunc->getName() << "\n";
 								#endif
-								newClonedFunc = buildClone(prevClonedFuncs.at(0), true);
+
+								Instruction *nextInstr = ++i;
+
+								LoadInst* load_from_g = new LoadInst(gvar_int32_g, "", nextInstr);
+								CI->replaceAllUsesWith(load_from_g);
+								newClonedFunc = prevClonedFuncs.at(0);
+								// Set the calling instruction to call the cloned function insted of the original function
+								CI->setCalledFunction(newClonedFunc);
 
 							}
 
-							#if DEBUG
-							errs() << "Printing Cloned and Modified Function: " << newClonedFunc->getName() << "\n";
-							for(Function::iterator o = newClonedFunc->begin(), oe = newClonedFunc->end(); o != oe; ++o){
-								BasicBlock* OB = o;
-								for(BasicBlock::iterator oI = OB->begin(), oIE = OB->end(); oI != oIE; ++oI){
-									Instruction *origInstr = oI;
-									errs() << *origInstr << "\n";
-								}
-							}
-							#endif
-
-
-							Instruction *nextInstr = ++i;
-
-							LoadInst* load_from_g = new LoadInst(gvar_int32_g, "", nextInstr);
-							CI->replaceAllUsesWith(load_from_g);
-
-							// Set the calling instruction to call the cloned function insted of the original function
-							CI->setCalledFunction(newClonedFunc);
-							M.getFunctionList().push_front(newClonedFunc);
-
-							
-
-							
-
-							// 
-
-							// if(isa<StoreInst>(nextInstr)){
-							// 	#if DEBUG
-							// 	errs() << "Previous Instruction: " << *IN << "\n";
-							// 	errs() << "Next Instruction: " << *nextInstr << "\n";
-							// 	#endif
-
-							// 	LoadInst* load_from_g = new LoadInst(gvar_int32_g, "", nextInstr);
-							// 	StoreInst *strG = new StoreInst(load_from_g, nextInstr->getOperand(1), false, nextInstr);
-
-
-							// 	// Remove nextInstr
-							// 	//++i;
-							// 	//nextInstr->dropAllReferences();
-							// 	//nextInstr->eraseFromParent();
-
-							// }
-							// else{
-							// 	--i;
-							// }
-							// // CallInst *cloned_call = CallInst::Create( clonedFunc, CI->getArgOperand(0), "", CI);
-							// // CI->dropAllReferences();
-							// // CI->eraseFromParent();
-
-							#if DEBUG
-							errs() << "Done with function call: " << callingFunc->getName() << "\n";
-							#endif
-
-							clonedFuncs.push_back(newClonedFunc);
 						}
 					}
 				}
@@ -331,31 +293,7 @@ namespace {
 		}
 	};
 
-	// 	struct FPass :  public FunctionPass
-	// 	{
-
-	// 		/** Constructor. */
-	// 		static char ID;
-	// 		FPass() : FunctionPass(ID) {
-	// 		}
-
-	// 		virtual bool doInitialization(Module &M){
-	// 			AnalysisUsage* au = new AnalysisUsage();
-	// 			au->addRequired<Hello>();
-
-	// 			return true;
-	// 		}
-
-	// 		virtual bool runOnFunction(llvm::Function &F){
-	// 			errs() << "Running function pass!!!\n";
-
-	// 			return true;
-	// 		}
-	// 	};
-
 }
 
-char Hello::ID = 0;
-static RegisterPass<Hello> X("hello", "Clone Test Pass", false, false);
-//char FPass::ID = 1;
-//static RegisterPass<FPass> Y("fpass", "Clone function pass", false, false);
+char Clone::ID = 0;
+static RegisterPass<Clone> X("clone", "Clone Test Pass", false, false);

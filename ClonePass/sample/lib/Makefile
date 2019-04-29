@@ -9,6 +9,6 @@ LEVEL=..
 # List all of the subdirectories that we will compile.
 #
 #DIRS=Scratch
-DIRS=Hello
+DIRS=Clone
 
 include $(LEVEL)/Makefile.common
