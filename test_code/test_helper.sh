@@ -1,5 +1,4 @@
 #!/bin/bash
-setenv PATH /afs/glue/class/old/enee/759c/llvm/llvm-3.4-install/opt/bin/:$PATH
 
 # Clean the files
 rm -f *.bc
@@ -17,7 +16,7 @@ for d in $PWD/*.c; do
     gcc "${d%.*}_original.s" -o "${d%.*}_original.x"
 
     # Pass the bytecode files through our pass
-    opt -O3 -load ../ClonePass/opt/lib/libClone.so -clone "${d%.*}.bc" -o "${d%.*}_cloned.bc"
+    opt -load ../ClonePass/opt/lib/libClone.so -clone "${d%.*}.bc" -o "${d%.*}_cloned.bc"
     
     #  Create the asm files for the bytecode files that went through our pass
     llc "${d%.*}_cloned.bc" -o "${d%.*}_cloned.s"
