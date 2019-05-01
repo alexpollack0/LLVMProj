@@ -149,14 +149,6 @@ namespace {
 								#endif
 								newClonedFunc = buildClone(callingFunc, false);
 
-								Instruction *nextInstr = ++i;
-
-								LoadInst* load_from_g = new LoadInst(gvar_int32_g, "", nextInstr);
-								load_from_g->setAlignment(4);
-								CI->replaceAllUsesWith(load_from_g);
-
-								// Set the calling instruction to call the cloned function insted of the original function
-								CI->setCalledFunction(newClonedFunc);
 								M.getFunctionList().push_front(newClonedFunc);
 								clonedFuncs.push_back(newClonedFunc);
 
@@ -168,15 +160,59 @@ namespace {
 								errs() << "Re-cloning " << callingFunc->getName() << "\n";
 								#endif
 
-								Instruction *nextInstr = ++i;
-
-								LoadInst* load_from_g = new LoadInst(gvar_int32_g, "", nextInstr);
-								CI->replaceAllUsesWith(load_from_g);
-								newClonedFunc = prevClonedFuncs.at(0);
-								// Set the calling instruction to call the cloned function insted of the original function
-								CI->setCalledFunction(newClonedFunc);
+								newClonedFunc = prevClonedFuncs.at(0);								
 
 							}
+
+							Instruction *nextInstr = ++i;
+
+							LoadInst* load_from_g = new LoadInst(gvar_int32_g, "", nextInstr);
+							load_from_g->setAlignment(4);
+
+							// This is a fix for the pop_direcect_branch changing values 
+
+							// Get all the instrucions that use the return value from the function:
+							for(Value::use_iterator u = CI->use_begin(), ue = CI->use_end(); u != ue; u++ ){								
+
+								// Check if it is an instruction:
+								if(isa<Instruction>(*u)){
+									Instruction* inst = cast<Instruction>(*u);
+									#if DEBUG
+										errs() << "!!! Call: " << *CI << " gets used: " << *inst << "\n";
+									#endif
+
+									// For all the instructions that use the return value check to see if they use an operand eveluated before the cloned function call.
+									for(Value::use_iterator after_use = CI->use_begin(), aue = CI->use_end(); after_use != aue; after_use++ ){
+										if(isa<Instruction>(*after_use)){
+											Instruction* use_after_inst = cast<Instruction>(*after_use);
+
+											// Get all the operands used by this instruction
+											for(User::op_iterator oper = use_after_inst->op_begin(), eoper = use_after_inst->op_end(); oper != eoper; oper++ ){
+												if(isa<Instruction>(*oper)){
+													Instruction* source_inst = cast<Instruction>(*oper);
+
+													// Make sure we are not moving the call instruciton itself
+													if (source_inst != CI){
+														// Move these instructions to right after the the cloned function call
+														#if DEBUG
+															errs() << "!!!! Moving source to after call: Call: " << *CI << " source: " << *source_inst;
+															errs() << " use: " << *inst << "\n";
+														#endif
+														source_inst->removeFromParent();
+														source_inst->insertAfter(CI);
+													}													
+												}
+											}
+										}
+									}
+								}
+							}
+
+
+							CI->replaceAllUsesWith(load_from_g);
+							
+							// Set the calling instruction to call the cloned function insted of the original function
+							CI->setCalledFunction(newClonedFunc);
 
 						}
 					}

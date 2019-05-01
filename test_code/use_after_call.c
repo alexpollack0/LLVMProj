@@ -8,7 +8,7 @@ int pbar(int b){
 }
 
 int pfoo(int x){
-    return x * 4;// + pbar(x);
+    return x + pbar(x);
 }
 
 int main(){
