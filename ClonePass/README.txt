@@ -27,6 +27,8 @@ calls the cloned version both times
 - Ensure proper return values: return pfunc(var) + var
 4. NotSavingRet.c
 - Ensure proper execution when not saving a value returned
+5. MultReturns.c
+- Ensure proper execution when cloned function has multiple return statements
 
 How to run:
 In the directory 'test_code', run the bash script: ./test_helper.sh
@@ -54,4 +56,4 @@ the return instruction.
 After cloning or using the already cloned version of a function entireClone will insert a load from the global variable g right after the function call. Next,
 entireClone will check to see if there are instructions that use the functions return value. If so it will make sure that all their operands are
 loaded after the function call and replace the operand from the call with the load from the global. Finally, buildClone will change the calling instruction to call
-the cloned function instead of the original function. 
+the cloned function instead of the original function.
