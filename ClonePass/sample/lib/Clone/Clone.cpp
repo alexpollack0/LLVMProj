@@ -43,7 +43,9 @@ namespace {
 			for(std::vector<Function*>::iterator iter = clonedFuncs.begin() ; iter != clonedFuncs.end(); ++iter){
 				Function* currCheckFunc = *iter;
 				if((currCheckFunc->getName()).find(currFunc->getName(), 0) != llvm::StringRef::npos){
+					#if DEBUG
 					errs() << "Pushing " << currCheckFunc->getName() << ", Original function: "<< currFunc->getName() << "\n";
+					#endif
 					toReturn.push_back(currCheckFunc);
 				}
 			}
@@ -98,7 +100,9 @@ namespace {
 								StoreInst *str = new StoreInst(retVal, gvar_int32_g, clonInstr);
 
 							}else{
+								#if DEBUG
 								errs() << "Returning void\n";
+								#endif
 							}
 
 							// Insert a call to the pop_direct_branch function right before the return call
@@ -115,7 +119,9 @@ namespace {
 
 		bool entireClone(llvm::Module &M, Function *F){
 
+			#if DEBUG
 			errs() << "In entireClone - " << F->getName() << "\n";
+			#endif
 
 			for(Function::iterator b = F->begin(), be = F->end(); b != be; ++b){
 
@@ -124,19 +130,19 @@ namespace {
 				for(BasicBlock::iterator i = BB->begin(), ie = BB->end(); i != ie; ++i){
 
 					Instruction* IN = i;
-					errs() << "Instruction: " << *IN << "\n";
 
 					if(isa<CallInst>(*IN)){
 
 						CallInst *CI = cast<CallInst>(IN);
 						Function* callingFunc = CI->getCalledFunction();
-						errs() << "Call Instruction: " << *CI << "\n";
 
 						if(callingFunc && callingFunc->getName().front() == 'p'
 						&& (std::find(funcNames.begin(), funcNames.end(), callingFunc->getName()) != funcNames.end())
 						&& callingFunc->getName() != "pop_direct_branch"){
 
+							#if DEBUG
 							errs() << "Ready to clone " << callingFunc->getName() << "\n";
+							#endif
 
 							std::vector<Function*> prevClonedFuncs = getClones(callingFunc);
 
@@ -160,7 +166,7 @@ namespace {
 								errs() << "Re-cloning " << callingFunc->getName() << "\n";
 								#endif
 
-								newClonedFunc = prevClonedFuncs.at(0);								
+								newClonedFunc = prevClonedFuncs.at(0);
 
 							}
 
@@ -168,11 +174,12 @@ namespace {
 
 							LoadInst* load_from_g = new LoadInst(gvar_int32_g, "", nextInstr);
 							load_from_g->setAlignment(4);
+							--i;
 
-							// This is a fix for the pop_direcect_branch changing values 
+							// This is a fix for the pop_direcect_branch changing values
 
 							// Get all the instrucions that use the return value from the function:
-							for(Value::use_iterator u = CI->use_begin(), ue = CI->use_end(); u != ue; u++ ){								
+							for(Value::use_iterator u = CI->use_begin(), ue = CI->use_end(); u != ue; u++ ){
 
 								// Check if it is an instruction:
 								if(isa<Instruction>(*u)){
@@ -200,7 +207,7 @@ namespace {
 														#endif
 														source_inst->removeFromParent();
 														source_inst->insertAfter(CI);
-													}													
+													}
 												}
 											}
 										}
@@ -210,7 +217,7 @@ namespace {
 
 
 							CI->replaceAllUsesWith(load_from_g);
-							
+
 							// Set the calling instruction to call the cloned function insted of the original function
 							CI->setCalledFunction(newClonedFunc);
 
